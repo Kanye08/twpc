@@ -42,6 +42,17 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        // Check blocked BEFORE attempting auth
+        $user = User::where('email', $this->string('email'))->first();
+
+        if ($user && $user->isBlocked()) {
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'Your account has been blocked. Please contact support.',
+            ]);
+        }
+
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
@@ -53,11 +64,13 @@ class LoginRequest extends FormRequest
         RateLimiter::clear($this->throttleKey());
     }
 
+
     /**
      * Ensure the login request is not rate limited.
      *
      * @throws ValidationException
      */
+
     public function ensureIsNotRateLimited(): void
     {
         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
@@ -75,6 +88,7 @@ class LoginRequest extends FormRequest
             ]),
         ]);
     }
+    
 
     /**
      * Get the rate limiting throttle key for the request.
