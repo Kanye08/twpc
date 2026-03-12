@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules;
 
 class UserController extends Controller
 {
@@ -12,6 +15,32 @@ class UserController extends Controller
         $users = User::where('is_admin', false)->latest()->paginate(15);
 
         return view('admin.users.index', compact('users'));
+    }
+
+    public function create()
+    {
+        return view('admin.users.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
+
+        User::create([
+            'name'              => $request->name,
+            'email'             => $request->email,
+            'password'          => Hash::make($request->password),
+            'is_admin'          => false,
+            'is_blocked'        => false,
+            'email_verified_at' => now(),
+        ]);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User created successfully.');
     }
 
     public function block(User $user)
